@@ -1,0 +1,2100 @@
+cat > public/index.html << 'EOF'
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>School Calendar</title>
+        <style id="dynamicStyles">
+            * {
+                box-sizing: border-box;
+            }
+            body {
+                margin: 0;
+                font-family: var(
+                    --calendar-font,
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    sans-serif
+                );
+                background: var(--calendar-bg, #f9fafb);
+            }
+            .container {
+                max-width: 1400px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            .header {
+                background: white;
+                border-bottom: 1px solid #e5e7eb;
+                padding: 20px 0;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            .title {
+                font-size: var(--title-size, 28px);
+                font-weight: bold;
+                color: var(--title-color, #1f2937);
+                margin: 0;
+            }
+            .main-content {
+                display: grid;
+                grid-template-columns: 250px 1fr;
+                gap: 20px;
+                align-items: start;
+            }
+            .sidebar {
+                min-width: 250px;
+            }
+            .calendar-section {
+                width: 100%;
+            }
+            .controls {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                margin: 20px 0;
+                gap: 20px;
+            }
+            .btn {
+                padding: 10px 16px;
+                background: #3b82f6;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-weight: 500;
+            }
+            .btn:hover {
+                background: #2563eb;
+            }
+            .btn-red {
+                background: #dc2626;
+            }
+            .btn-red:hover {
+                background: #b91c1c;
+            }
+            .btn-green {
+                background: #059669;
+            }
+            .btn-green:hover {
+                background: #047857;
+            }
+            .btn-small {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+            .btn-link {
+                display: block;
+                width: 100%;
+                margin-bottom: 8px;
+                text-align: left;
+                background: #6366f1;
+                text-decoration: none;
+            }
+            .btn-link:hover {
+                background: #4f46e5;
+            }
+            .select {
+                padding: 10px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 6px;
+                background: white;
+            }
+
+            .calendar-container {
+                background: white;
+                border-radius: 8px;
+                overflow: hidden;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            }
+            .calendar-header {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+            }
+            .day-header {
+                background: var(--grid-color, #f8fafc);
+                padding: 12px;
+                text-align: center;
+                font-weight: 600;
+                color: #374151;
+                border-right: 1px solid #e2e8f0;
+                font-size: var(--calendar-font-size, 14px);
+            }
+            .day-header:last-child {
+                border-right: none;
+            }
+
+            .calendar-grid {
+                display: grid;
+                grid-template-columns: repeat(7, 1fr);
+            }
+            .day-cell {
+                background: white;
+                min-height: 120px;
+                padding: 8px;
+                cursor: pointer;
+                border-right: 1px solid var(--grid-border, #e2e8f0);
+                border-bottom: 1px solid var(--grid-border, #e2e8f0);
+                overflow: hidden;
+                font-size: var(--calendar-font-size, 14px);
+                color: var(--calendar-font-color, #374151);
+            }
+            .day-cell:nth-child(7n) {
+                border-right: none;
+            }
+            .day-cell:hover {
+                background: #f8fafc;
+            }
+            .day-number {
+                font-weight: 600;
+                margin-bottom: 4px;
+            }
+            .day-badge {
+                display: inline-block;
+                font-size: 12px;
+                padding: 3px 6px;
+                border-radius: 4px;
+                margin: 1px;
+                font-weight: 600;
+            }
+            .badge-a {
+                background: #dbeafe;
+                color: #1e40af;
+            }
+            .badge-b {
+                background: #fef3c7;
+                color: #92400e;
+            }
+            .badge-access {
+                background: #dcfce7;
+                color: #166534;
+            }
+
+            .event {
+                font-size: 11px;
+                padding: 2px 6px;
+                margin: 1px 0;
+                border-radius: 3px;
+                color: white;
+                font-weight: 500;
+            }
+            .event-life {
+                background: #ef4444;
+            }
+            .event-asb {
+                background: #06b6d4;
+            }
+            .event-athletics {
+                background: #3b82f6;
+            }
+            .event-art-theater {
+                background: #10b981;
+            }
+            .event-clubs {
+                background: #f59e0b;
+            }
+            .event-counseling {
+                background: #8b5cf6;
+            }
+
+            .modal {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 1000;
+            }
+            .modal-content {
+                background: white;
+                width: 90%;
+                max-width: 800px;
+                margin: 5% auto;
+                border-radius: 8px;
+                overflow: hidden;
+                max-height: 80vh;
+                overflow-y: auto;
+            }
+            .modal-header {
+                background: #f8fafc;
+                padding: 20px;
+                border-bottom: 1px solid #e2e8f0;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .modal-body {
+                padding: 20px;
+            }
+            .form-group {
+                margin-bottom: 15px;
+            }
+            .form-label {
+                display: block;
+                margin-bottom: 5px;
+                font-weight: 500;
+                color: #374151;
+            }
+            .form-input {
+                width: 100%;
+                padding: 8px 12px;
+                border: 1px solid #d1d5db;
+                border-radius: 4px;
+            }
+            .form-row {
+                display: grid;
+                grid-template-columns: 2fr 1fr 2fr 120px;
+                gap: 10px;
+                align-items: end;
+                margin-bottom: 10px;
+            }
+            .color-picker {
+                display: flex;
+                gap: 8px;
+                margin-top: 8px;
+            }
+            .color-option {
+                width: 30px;
+                height: 30px;
+                border-radius: 50%;
+                cursor: pointer;
+                border: 2px solid transparent;
+            }
+            .color-option.active {
+                border-color: #374151;
+            }
+            .status-bar {
+                background: #f0f9ff;
+                padding: 15px;
+                border-radius: 8px;
+                margin-top: 20px;
+            }
+            .admin-panel {
+                background: #fef3c7;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            .material-item,
+            .event-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 10px;
+                border: 1px solid #e5e7eb;
+                border-radius: 4px;
+                margin-bottom: 8px;
+            }
+            .add-form {
+                background: #f8fafc;
+                padding: 15px;
+                border-radius: 6px;
+                margin-top: 10px;
+                border: 1px solid #e2e8f0;
+            }
+            .event-details {
+                flex-grow: 1;
+            }
+            .event-time {
+                font-weight: 600;
+                color: #374151;
+            }
+            .event-dept {
+                font-size: 12px;
+                padding: 2px 6px;
+                border-radius: 3px;
+                color: white;
+                display: inline-block;
+                margin-left: 8px;
+            }
+            .loading {
+                opacity: 0.5;
+                pointer-events: none;
+            }
+            .db-status {
+                font-size: 12px;
+                color: #059669;
+                margin-left: 10px;
+            }
+            .style-controls {
+                background: #f3f4f6;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            .style-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 10px;
+            }
+            .link-manager {
+                background: #e0f2fe;
+                padding: 15px;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            .link-item {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                margin-bottom: 8px;
+            }
+            .sidebar-links {
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                margin-bottom: 20px;
+            }
+            .no-sidebar {
+                grid-template-columns: 1fr;
+            }
+            .admin-tools {
+                background: white;
+                padding: 15px;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="header">
+            <div class="container">
+                <div
+                    style="
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                    "
+                >
+                    <h1 class="title" id="calendarTitle">
+                        📅 School Calendar
+                        <span id="dbStatus" class="db-status"
+                            >🔗 Connected to Database</span
+                        >
+                    </h1>
+                    <div style="display: flex; gap: 16px; align-items: center">
+                        <select
+                            class="select"
+                            id="viewSelector"
+                            onchange="changeView()"
+                        >
+                            <option value="See All">See All Departments</option>
+                            <option value="Life">Life</option>
+                            <option value="ASB">ASB</option>
+                            <option value="Athletics">Athletics</option>
+                            <option value="Art/Theater">Art/Theater</option>
+                            <option value="Clubs">Clubs</option>
+                            <option value="Counseling">Counseling</option>
+                        </select>
+                        <button
+                            class="btn"
+                            id="adminBtn"
+                            onclick="toggleAdmin()"
+                        >
+                            Admin Mode
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div id="adminPanel" class="admin-panel" style="display: none">
+                <strong>🔧 Admin Mode Active</strong> - All changes are saved to
+                the database automatically
+            </div>
+
+            <!-- Style Customization Controls -->
+            <div
+                id="styleControls"
+                class="style-controls"
+                style="display: none"
+            >
+                <h4>🎨 Appearance Customization</h4>
+                <div class="style-grid">
+                    <div class="form-group">
+                        <label class="form-label">Calendar Title</label>
+                        <input
+                            type="text"
+                            id="titleText"
+                            class="form-input"
+                            placeholder="School Calendar"
+                            onchange="updateTitle()"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Background Color</label>
+                        <input
+                            type="color"
+                            id="bgColor"
+                            class="form-input"
+                            onchange="updateStyles()"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title Color</label>
+                        <input
+                            type="color"
+                            id="titleColor"
+                            class="form-input"
+                            onchange="updateStyles()"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Title Font Size</label>
+                        <input
+                            type="range"
+                            id="titleSize"
+                            min="20"
+                            max="40"
+                            value="28"
+                            class="form-input"
+                            onchange="updateStyles()"
+                        />
+                        <span id="titleSizeDisplay">28px</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Calendar Font</label>
+                        <select
+                            id="calendarFont"
+                            class="form-input"
+                            onchange="updateStyles()"
+                        >
+                            <option
+                                value="-apple-system, BlinkMacSystemFont, sans-serif"
+                            >
+                                System Default
+                            </option>
+                            <option value="Arial, sans-serif">Arial</option>
+                            <option value="Helvetica, sans-serif">
+                                Helvetica
+                            </option>
+                            <option value="Georgia, serif">Georgia</option>
+                            <option value="Times New Roman, serif">
+                                Times New Roman
+                            </option>
+                            <option value="Courier New, monospace">
+                                Courier New
+                            </option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Calendar Font Size</label>
+                        <input
+                            type="range"
+                            id="calendarFontSize"
+                            min="10"
+                            max="18"
+                            value="14"
+                            class="form-input"
+                            onchange="updateStyles()"
+                        />
+                        <span id="fontSizeDisplay">14px</span>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Calendar Font Color</label>
+                        <input
+                            type="color"
+                            id="calendarFontColor"
+                            class="form-input"
+                            value="#374151"
+                            onchange="updateStyles()"
+                        />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Grid Color</label>
+                        <input
+                            type="color"
+                            id="gridColor"
+                            class="form-input"
+                            value="#f8fafc"
+                            onchange="updateStyles()"
+                        />
+                    </div>
+                </div>
+                <button class="btn" onclick="resetStyles()">
+                    Reset to Default
+                </button>
+                <button class="btn btn-red" onclick="hideStyleControls()">
+                    Close
+                </button>
+            </div>
+
+            <!-- Link Manager -->
+            <div id="linkManager" class="link-manager" style="display: none">
+                <h4>🔗 Quick Links Manager</h4>
+                <div id="linksList"></div>
+                <div class="link-item">
+                    <input
+                        type="text"
+                        id="newLinkTitle"
+                        placeholder="Link Title"
+                        class="form-input"
+                        style="flex: 1"
+                    />
+                    <input
+                        type="url"
+                        id="newLinkUrl"
+                        placeholder="https://example.com"
+                        class="form-input"
+                        style="flex: 1"
+                    />
+                    <button class="btn btn-green btn-small" onclick="addLink()">
+                        Add Link
+                    </button>
+                </div>
+                <button
+                    class="btn btn-red btn-small"
+                    onclick="hideLinkManager()"
+                >
+                    Close
+                </button>
+            </div>
+
+            <div class="main-content" id="mainContent">
+                <!-- Sidebar for admin tools and links -->
+                <div class="sidebar" id="sidebar">
+                    <!-- Admin Tools -->
+                    <div
+                        class="admin-tools"
+                        id="adminTools"
+                        style="display: none"
+                    >
+                        <h4 style="margin: 0 0 15px 0">🛠️ Admin Tools</h4>
+                        <button
+                            class="btn btn-small"
+                            onclick="showStyleControls()"
+                            style="width: 100%; margin-bottom: 8px"
+                        >
+                            🎨 Customize Appearance
+                        </button>
+                        <button
+                            class="btn btn-small"
+                            onclick="showLinkManager()"
+                            style="width: 100%; margin-bottom: 8px"
+                        >
+                            🔗 Manage Quick Links
+                        </button>
+                        <button
+                            class="btn btn-small"
+                            onclick="exportData()"
+                            style="width: 100%; margin-bottom: 8px"
+                        >
+                            📥 Export Data
+                        </button>
+                        <button
+                            class="btn btn-small"
+                            onclick="showStats()"
+                            style="width: 100%"
+                        >
+                            📊 View Statistics
+                        </button>
+                    </div>
+
+                    <!-- Quick Links -->
+                    <div
+                        class="sidebar-links"
+                        id="sidebarLinksContainer"
+                        style="display: none"
+                    >
+                        <h4 style="margin: 0 0 10px 0">📎 Quick Links</h4>
+                        <div id="sidebarLinks"></div>
+                    </div>
+                </div>
+
+                <div class="calendar-section">
+                    <div
+                        id="viewIndicator"
+                        style="
+                            text-align: center;
+                            font-weight: 600;
+                            color: #6b7280;
+                            margin-bottom: 10px;
+                        "
+                    ></div>
+
+                    <!-- Centered month navigation -->
+                    <div class="controls">
+                        <button class="btn" onclick="previousMonth()">
+                            ← Previous
+                        </button>
+                        <span
+                            style="font-size: 20px; font-weight: 600"
+                            id="monthYear"
+                            >August 2025</span
+                        >
+                        <button class="btn" onclick="nextMonth()">
+                            Next →
+                        </button>
+                    </div>
+
+                    <div class="calendar-container" id="calendarContainer">
+                        <div class="calendar-header">
+                            <div class="day-header">Sunday</div>
+                            <div class="day-header">Monday</div>
+                            <div class="day-header">Tuesday</div>
+                            <div class="day-header">Wednesday</div>
+                            <div class="day-header">Thursday</div>
+                            <div class="day-header">Friday</div>
+                            <div class="day-header">Saturday</div>
+                        </div>
+                        <div class="calendar-grid" id="calendar-days"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="status-bar">
+                <h3 style="margin: 0 0 10px 0; color: #1e40af">
+                    📋 System Status
+                </h3>
+                <div
+                    style="
+                        display: grid;
+                        grid-template-columns: repeat(
+                            auto-fit,
+                            minmax(200px, 1fr)
+                        );
+                        gap: 10px;
+                        font-size: 14px;
+                    "
+                >
+                    <div>✅ Server: Running</div>
+                    <div>
+                        ✅ Database:
+                        <span id="dbConnection"
+                            >Connected (Neon PostgreSQL)</span
+                        >
+                    </div>
+                    <div>
+                        ✅ Data Persistence:
+                        <span id="dataPersistence">Active</span>
+                    </div>
+                    <div>✅ Admin Access: Password Protected</div>
+                    <div>
+                        ✅ Customization:
+                        <span id="customizationStatus">Available</span>
+                    </div>
+                    <div>
+                        ✅ Quick Links:
+                        <span id="quickLinksStatus">0 configured</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Date Detail Modal -->
+        <div id="dateModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="modalTitle">Date Details</h3>
+                    <button
+                        onclick="closeDateModal()"
+                        style="
+                            background: none;
+                            border: none;
+                            font-size: 24px;
+                            cursor: pointer;
+                        "
+                    >
+                        &times;
+                    </button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <div id="adminControls" style="display: none">
+                        <h4>Admin Controls</h4>
+                        <div class="form-group">
+                            <label class="form-label">Date Color</label>
+                            <div class="color-picker">
+                                <div
+                                    class="color-option"
+                                    style="background: #ff6b6b"
+                                    onclick="setDateColor('#ff6b6b')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="background: #4ecdc4"
+                                    onclick="setDateColor('#4ecdc4')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="background: #45b7d1"
+                                    onclick="setDateColor('#45b7d1')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="background: #96ceb4"
+                                    onclick="setDateColor('#96ceb4')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="background: #feca57"
+                                    onclick="setDateColor('#feca57')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="background: #ff9ff3"
+                                    onclick="setDateColor('#ff9ff3')"
+                                ></div>
+                                <div
+                                    class="color-option"
+                                    style="
+                                        background: transparent;
+                                        border: 1px solid #ccc;
+                                    "
+                                    onclick="setDateColor('')"
+                                    title="No color"
+                                ></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 20px">
+                            <div class="form-group">
+                                <label class="form-label">Day Type</label>
+                                <select
+                                    id="dayType"
+                                    class="form-input"
+                                    style="width: auto"
+                                    onchange="setDayType()"
+                                >
+                                    <option value="">No type</option>
+                                    <option value="A">A Day</option>
+                                    <option value="B">B Day</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label
+                                    style="
+                                        display: flex;
+                                        align-items: center;
+                                        gap: 8px;
+                                    "
+                                >
+                                    <input
+                                        type="checkbox"
+                                        id="accessDay"
+                                        onchange="setAccessDay()"
+                                    />
+                                    <span>ACCESS Day</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Events for this Date</label>
+                        <div id="eventsList"></div>
+
+                        <div
+                            id="addEventForm"
+                            class="add-form"
+                            style="display: none"
+                        >
+                            <h5 style="margin: 0 0 10px 0" id="eventFormTitle">
+                                Add New Event
+                            </h5>
+                            <div class="form-row">
+                                <div>
+                                    <label class="form-label"
+                                        >Event Title</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="newEventTitle"
+                                        class="form-input"
+                                        placeholder="e.g., Welcome Assembly"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="form-label">Time</label>
+                                    <input
+                                        type="time"
+                                        id="newEventTime"
+                                        class="form-input"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="form-label">Department</label>
+                                    <select
+                                        id="newEventDepartment"
+                                        class="form-input"
+                                    >
+                                        <option value="Life">Life</option>
+                                        <option value="ASB">ASB</option>
+                                        <option value="Athletics">
+                                            Athletics
+                                        </option>
+                                        <option value="Art/Theater">
+                                            Art/Theater
+                                        </option>
+                                        <option value="Clubs">Clubs</option>
+                                        <option value="Counseling">
+                                            Counseling
+                                        </option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button
+                                        class="btn btn-green"
+                                        id="saveEventBtn"
+                                        onclick="saveEvent()"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px">
+                                <label class="form-label"
+                                    >Description (optional)</label
+                                >
+                                <input
+                                    type="text"
+                                    id="newEventDescription"
+                                    class="form-input"
+                                    placeholder="Additional details about the event"
+                                />
+                            </div>
+                            <div style="display: flex; gap: 10px">
+                                <button class="btn" onclick="cancelAddEvent()">
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            class="btn btn-green"
+                            id="showAddEventBtn"
+                            onclick="showAddEventForm()"
+                            style="margin-top: 10px"
+                        >
+                            + Add Event
+                        </button>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label"
+                            >Daily Materials by Grade</label
+                        >
+                        <div id="materialsList"></div>
+
+                        <div
+                            id="addMaterialForm"
+                            class="add-form"
+                            style="display: none"
+                        >
+                            <h5
+                                style="margin: 0 0 10px 0"
+                                id="materialFormTitle"
+                            >
+                                Add New Material
+                            </h5>
+                            <div class="form-row">
+                                <div>
+                                    <label class="form-label">Grade</label>
+                                    <select
+                                        id="newMaterialGrade"
+                                        class="form-input"
+                                    >
+                                        <option value="9th">9th Grade</option>
+                                        <option value="10th">10th Grade</option>
+                                        <option value="11th">11th Grade</option>
+                                        <option value="12th">12th Grade</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="form-label"
+                                        >Material Title</label
+                                    >
+                                    <input
+                                        type="text"
+                                        id="newMaterialTitle"
+                                        class="form-input"
+                                        placeholder="e.g., Algebra Chapter 1 Notes"
+                                    />
+                                </div>
+                                <div>
+                                    <button
+                                        class="btn btn-green"
+                                        id="saveMaterialBtn"
+                                        onclick="saveMaterial()"
+                                    >
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 10px">
+                                <label class="form-label">Link/URL</label>
+                                <input
+                                    type="url"
+                                    id="newMaterialLink"
+                                    class="form-input"
+                                    placeholder="https://drive.google.com/file/123 or any URL"
+                                />
+                            </div>
+                            <div style="display: flex; gap: 10px">
+                                <button
+                                    class="btn"
+                                    onclick="cancelAddMaterial()"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+
+                        <button
+                            class="btn btn-green"
+                            id="showAddMaterialBtn"
+                            onclick="showAddMaterialForm()"
+                            style="margin-top: 10px"
+                        >
+                            + Add Material
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            let currentDate = new Date(2025, 7, 1);
+            let isAdmin = false;
+            let selectedDate = null;
+            let currentView = "See All";
+            let editingEventId = null;
+            let editingMaterialId = null;
+            let quickLinks = [
+                // Add some default links to show the feature
+                { title: "Google Drive", url: "https://drive.google.com" },
+                { title: "Gmail", url: "https://gmail.com" },
+                { title: "Canvas LMS", url: "https://canvas.com" },
+            ];
+
+            // Data storage
+            let dateConfigs = {};
+            let events = {};
+            let materials = {};
+
+            // Style management
+            let customStyles = {
+                titleText: "School Calendar",
+                bgColor: "#f9fafb",
+                titleColor: "#1f2937",
+                titleSize: "28",
+                calendarFont: "-apple-system, BlinkMacSystemFont, sans-serif",
+                calendarFontSize: "14",
+                calendarFontColor: "#374151",
+                gridColor: "#f8fafc",
+            };
+
+            function updateStyles() {
+                const titleText =
+                    document.getElementById("titleText").value ||
+                    customStyles.titleText;
+                const bgColor =
+                    document.getElementById("bgColor").value ||
+                    customStyles.bgColor;
+                const titleColor =
+                    document.getElementById("titleColor").value ||
+                    customStyles.titleColor;
+                const titleSize =
+                    document.getElementById("titleSize").value ||
+                    customStyles.titleSize;
+                const calendarFont =
+                    document.getElementById("calendarFont").value ||
+                    customStyles.calendarFont;
+                const calendarFontSize =
+                    document.getElementById("calendarFontSize").value ||
+                    customStyles.calendarFontSize;
+                const calendarFontColor =
+                    document.getElementById("calendarFontColor").value ||
+                    customStyles.calendarFontColor;
+                const gridColor =
+                    document.getElementById("gridColor").value ||
+                    customStyles.gridColor;
+
+                document.getElementById("titleSizeDisplay").textContent =
+                    titleSize + "px";
+                document.getElementById("fontSizeDisplay").textContent =
+                    calendarFontSize + "px";
+
+                const root = document.documentElement;
+                root.style.setProperty("--calendar-bg", bgColor);
+                root.style.setProperty("--title-color", titleColor);
+                root.style.setProperty("--title-size", titleSize + "px");
+                root.style.setProperty("--calendar-font", calendarFont);
+                root.style.setProperty(
+                    "--calendar-font-size",
+                    calendarFontSize + "px",
+                );
+                root.style.setProperty(
+                    "--calendar-font-color",
+                    calendarFontColor,
+                );
+                root.style.setProperty("--grid-color", gridColor);
+                root.style.setProperty("--grid-border", gridColor);
+
+                document.getElementById("calendarTitle").innerHTML =
+                    `📅 ${titleText} <span id="dbStatus" class="db-status">🔗 Connected to Database</span>`;
+
+                customStyles = {
+                    titleText,
+                    bgColor,
+                    titleColor,
+                    titleSize,
+                    calendarFont,
+                    calendarFontSize,
+                    calendarFontColor,
+                    gridColor,
+                };
+                localStorage.setItem(
+                    "calendarStyles",
+                    JSON.stringify(customStyles),
+                );
+            }
+
+            function updateTitle() {
+                updateStyles();
+            }
+
+            function loadSavedStyles() {
+                const saved = localStorage.getItem("calendarStyles");
+                if (saved) {
+                    customStyles = JSON.parse(saved);
+
+                    document.getElementById("titleText").value =
+                        customStyles.titleText;
+                    document.getElementById("bgColor").value =
+                        customStyles.bgColor;
+                    document.getElementById("titleColor").value =
+                        customStyles.titleColor;
+                    document.getElementById("titleSize").value =
+                        customStyles.titleSize;
+                    document.getElementById("calendarFont").value =
+                        customStyles.calendarFont;
+                    document.getElementById("calendarFontSize").value =
+                        customStyles.calendarFontSize;
+                    document.getElementById("calendarFontColor").value =
+                        customStyles.calendarFontColor;
+                    document.getElementById("gridColor").value =
+                        customStyles.gridColor;
+
+                    updateStyles();
+                }
+            }
+
+            function resetStyles() {
+                customStyles = {
+                    titleText: "School Calendar",
+                    bgColor: "#f9fafb",
+                    titleColor: "#1f2937",
+                    titleSize: "28",
+                    calendarFont:
+                        "-apple-system, BlinkMacSystemFont, sans-serif",
+                    calendarFontSize: "14",
+                    calendarFontColor: "#374151",
+                    gridColor: "#f8fafc",
+                };
+
+                Object.keys(customStyles).forEach((key) => {
+                    const element = document.getElementById(key);
+                    if (element) element.value = customStyles[key];
+                });
+
+                updateStyles();
+            }
+
+            function showStyleControls() {
+                document.getElementById("styleControls").style.display =
+                    "block";
+            }
+
+            function hideStyleControls() {
+                document.getElementById("styleControls").style.display = "none";
+            }
+
+            // Link management
+            function loadQuickLinks() {
+                const saved = localStorage.getItem("quickLinks");
+                if (saved) {
+                    quickLinks = JSON.parse(saved);
+                } else {
+                    // Save default links
+                    localStorage.setItem(
+                        "quickLinks",
+                        JSON.stringify(quickLinks),
+                    );
+                }
+                updateSidebarLinks();
+                updateLinksManager();
+            }
+
+            function updateSidebarLinks() {
+                const linksContainer = document.getElementById("sidebarLinks");
+                const linksSection = document.getElementById(
+                    "sidebarLinksContainer",
+                );
+                const adminTools = document.getElementById("adminTools");
+                const sidebar = document.getElementById("sidebar");
+                const mainContent = document.getElementById("mainContent");
+
+                // Always show sidebar in admin mode
+                if (isAdmin) {
+                    sidebar.style.display = "block";
+                    adminTools.style.display = "block";
+                    mainContent.classList.remove("no-sidebar");
+
+                    // Show quick links if any exist
+                    if (quickLinks.length > 0) {
+                        linksSection.style.display = "block";
+                        let html = "";
+                        quickLinks.forEach((link) => {
+                            html += `<a href="${link.url}" target="_blank" class="btn btn-link">${link.title}</a>`;
+                        });
+                        linksContainer.innerHTML = html;
+                    } else {
+                        linksSection.style.display = "none";
+                    }
+
+                    // Update status
+                    document.getElementById("quickLinksStatus").textContent =
+                        `${quickLinks.length} configured`;
+                } else {
+                    sidebar.style.display = "none";
+                    adminTools.style.display = "none";
+                    linksSection.style.display = "none";
+                    mainContent.classList.add("no-sidebar");
+                }
+            }
+
+            function updateLinksManager() {
+                const container = document.getElementById("linksList");
+                let html = "";
+
+                quickLinks.forEach((link, index) => {
+                    html += `
+                    <div class="link-item">
+                        <input
+type="text" value="${link.title}" class="form-input" style="flex: 1;" onchange="updateLink(${index}, 'title', this.value)">
+                       <input type="url" value="${link.url}" class="form-input" style="flex: 1;" onchange="updateLink(${index}, 'url', this.value)">
+                       <button class="btn btn-red btn-small" onclick="deleteLink(${index})">Delete</button>
+                   </div>
+               `;
+                });
+
+                container.innerHTML = html;
+            }
+
+            function addLink() {
+                const title = document
+                    .getElementById("newLinkTitle")
+                    .value.trim();
+                const url = document.getElementById("newLinkUrl").value.trim();
+
+                if (!title || !url) {
+                    alert("Please enter both title and URL");
+                    return;
+                }
+
+                quickLinks.push({ title, url });
+                localStorage.setItem("quickLinks", JSON.stringify(quickLinks));
+
+                document.getElementById("newLinkTitle").value = "";
+                document.getElementById("newLinkUrl").value = "";
+
+                updateSidebarLinks();
+                updateLinksManager();
+            }
+
+            function updateLink(index, field, value) {
+                quickLinks[index][field] = value;
+                localStorage.setItem("quickLinks", JSON.stringify(quickLinks));
+                updateSidebarLinks();
+            }
+
+            function deleteLink(index) {
+                quickLinks.splice(index, 1);
+                localStorage.setItem("quickLinks", JSON.stringify(quickLinks));
+                updateSidebarLinks();
+                updateLinksManager();
+            }
+
+            function showLinkManager() {
+                document.getElementById("linkManager").style.display = "block";
+                updateLinksManager();
+            }
+
+            function hideLinkManager() {
+                document.getElementById("linkManager").style.display = "none";
+            }
+
+            function exportData() {
+                alert(
+                    "Export feature coming soon! This will allow you to backup your calendar data.",
+                );
+            }
+
+            function showStats() {
+                const totalEvents = Object.values(events).reduce(
+                    (sum, dayEvents) => sum + dayEvents.length,
+                    0,
+                );
+                const totalMaterials = Object.values(materials).reduce(
+                    (sum, dayMaterials) => {
+                        return (
+                            sum +
+                            Object.values(dayMaterials).reduce(
+                                (gradeSum, gradeMaterials) =>
+                                    gradeSum + gradeMaterials.length,
+                                0,
+                            )
+                        );
+                    },
+                    0,
+                );
+                const totalDatesWithConfig = Object.keys(dateConfigs).length;
+
+                alert(
+                    `📊 Calendar Statistics:\n\n` +
+                        `• Total Events: ${totalEvents}\n` +
+                        `• Total Materials: ${totalMaterials}\n` +
+                        `• Configured Dates: ${totalDatesWithConfig}\n` +
+                        `• Quick Links: ${quickLinks.length}\n` +
+                        `• Current View: ${currentView}`,
+                );
+            }
+
+            // API helper function
+            async function apiCall(url, options = {}) {
+                try {
+                    document.getElementById("dbStatus").textContent =
+                        "🔄 Saving...";
+
+                    const response = await fetch(url, {
+                        credentials: "include",
+                        headers: {
+                            "Content-Type": "application/json",
+                            ...options.headers,
+                        },
+                        ...options,
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
+                    }
+
+                    document.getElementById("dbStatus").textContent =
+                        "✅ Saved to Database";
+
+                    setTimeout(() => {
+                        document.getElementById("dbStatus").textContent =
+                            "🔗 Connected to Database";
+                    }, 2000);
+
+                    return await response.json();
+                } catch (error) {
+                    console.error("API call failed:", error);
+                    document.getElementById("dbStatus").textContent =
+                        "❌ Save Failed";
+                    document.getElementById("dbConnection").textContent =
+                        "Connection Error";
+                    throw error;
+                }
+            }
+
+            // Load data from database
+            async function loadDateConfigs() {
+                try {
+                    const configs = await apiCall("/api/date-configs");
+                    dateConfigs = configs;
+                } catch (error) {
+                    console.error("Failed to load date configs:", error);
+                }
+            }
+
+            async function loadEvents() {
+                try {
+                    const startDate = new Date(
+                        currentDate.getFullYear(),
+                        currentDate.getMonth(),
+                        1,
+                    )
+                        .toISOString()
+                        .split("T")[0];
+                    const endDate = new Date(
+                        currentDate.getFullYear(),
+                        currentDate.getMonth() + 1,
+                        0,
+                    )
+                        .toISOString()
+                        .split("T")[0];
+
+                    const eventData = await apiCall(
+                        `/api/events?startDate=${startDate}&endDate=${endDate}&department=${currentView}`,
+                    );
+                    events = eventData;
+                } catch (error) {
+                    console.error("Failed to load events:", error);
+                }
+            }
+
+            async function loadMaterials(dateKey) {
+                try {
+                    const materialData = await apiCall(
+                        `/api/materials?dateKey=${dateKey}`,
+                    );
+                    materials[dateKey] = materialData;
+                } catch (error) {
+                    console.error("Failed to load materials:", error);
+                }
+            }
+
+            async function checkAdminStatus() {
+                try {
+                    const status = await apiCall("/api/admin/status");
+                    isAdmin = status.isAdmin;
+                    updateAdminUI();
+                } catch (error) {
+                    console.error("Failed to check admin status:", error);
+                }
+            }
+
+            function updateAdminUI() {
+                if (isAdmin) {
+                    document.getElementById("adminBtn").textContent =
+                        "Exit Admin";
+                    document.getElementById("adminBtn").className =
+                        "btn btn-red";
+                    document.getElementById("adminPanel").style.display =
+                        "block";
+                } else {
+                    document.getElementById("adminBtn").textContent =
+                        "Admin Mode";
+                    document.getElementById("adminBtn").className = "btn";
+                    document.getElementById("adminPanel").style.display =
+                        "none";
+                }
+                updateSidebarLinks();
+            }
+
+            function getDepartmentClass(department) {
+                const deptMap = {
+                    Life: "event-life",
+                    ASB: "event-asb",
+                    Athletics: "event-athletics",
+                    "Art/Theater": "event-art-theater",
+                    Clubs: "event-clubs",
+                    Counseling: "event-counseling",
+                };
+                return deptMap[department] || "event-life";
+            }
+
+            function getDepartmentColor(department) {
+                const colorMap = {
+                    Life: "#ef4444",
+                    ASB: "#06b6d4",
+                    Athletics: "#3b82f6",
+                    "Art/Theater": "#10b981",
+                    Clubs: "#f59e0b",
+                    Counseling: "#8b5cf6",
+                };
+                return colorMap[department] || "#ef4444";
+            }
+
+            function updateCalendar() {
+                const monthNames = [
+                    "January",
+                    "February",
+                    "March",
+                    "April",
+                    "May",
+                    "June",
+                    "July",
+                    "August",
+                    "September",
+                    "October",
+                    "November",
+                    "December",
+                ];
+
+                document.getElementById("monthYear").textContent =
+                    monthNames[currentDate.getMonth()] +
+                    " " +
+                    currentDate.getFullYear();
+
+                const firstDay = new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth(),
+                    1,
+                ).getDay();
+                const daysInMonth = new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth() + 1,
+                    0,
+                ).getDate();
+
+                const totalCells = Math.ceil((firstDay + daysInMonth) / 7) * 7;
+                let html = "";
+
+                for (let i = 0; i < firstDay; i++) {
+                    html +=
+                        '<div class="day-cell" style="background: #f8fafc;"></div>';
+                }
+
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const dateKey = formatDate(
+                        new Date(
+                            currentDate.getFullYear(),
+                            currentDate.getMonth(),
+                            day,
+                        ),
+                    );
+                    const config = dateConfigs[dateKey] || {};
+                    const dayEvents = events[dateKey] || [];
+
+                    let cellStyle = config.color
+                        ? `background-color: ${config.color}20;`
+                        : "";
+
+                    html += `<div class="day-cell" style="${cellStyle}" onclick="selectDate(${day})">
+                   <div class="day-number">${day}</div>`;
+
+                    if (config.dayType) {
+                        html += `<span class="day-badge badge-${config.dayType.toLowerCase()}">${config.dayType} Day</span>`;
+                    }
+                    if (config.isAccess) {
+                        html += `<span class="day-badge badge-access">ACCESS</span>`;
+                    }
+
+                    let eventsShown = 0;
+                    dayEvents.forEach((event) => {
+                        if (
+                            eventsShown < 2 &&
+                            (currentView === "See All" ||
+                                event.department === currentView)
+                        ) {
+                            const eventClass = getDepartmentClass(
+                                event.department,
+                            );
+                            html += `<div class="event ${eventClass}">${event.time} ${event.title}</div>`;
+                            eventsShown++;
+                        }
+                    });
+
+                    const remainingEvents =
+                        dayEvents.filter(
+                            (e) =>
+                                currentView === "See All" ||
+                                e.department === currentView,
+                        ).length - eventsShown;
+                    if (remainingEvents > 0) {
+                        html += `<div style="font-size: 10px; color: #6b7280;">+${remainingEvents} more</div>`;
+                    }
+
+                    html += "</div>";
+                }
+
+                const cellsUsed = firstDay + daysInMonth;
+                const emptyCellsAfter = totalCells - cellsUsed;
+                for (let i = 0; i < emptyCellsAfter; i++) {
+                    html +=
+                        '<div class="day-cell" style="background: #f8fafc;"></div>';
+                }
+
+                document.getElementById("calendar-days").innerHTML = html;
+            }
+
+            function formatDate(date) {
+                return date.toISOString().split("T")[0];
+            }
+
+            async function previousMonth() {
+                currentDate.setMonth(currentDate.getMonth() - 1);
+                if (currentDate < new Date(2025, 7, 1)) {
+                    currentDate = new Date(2025, 7, 1);
+                }
+                await loadEvents();
+                updateCalendar();
+            }
+
+            async function nextMonth() {
+                currentDate.setMonth(currentDate.getMonth() + 1);
+                if (currentDate > new Date(2030, 6, 31)) {
+                    currentDate = new Date(2030, 6, 31);
+                }
+                await loadEvents();
+                updateCalendar();
+            }
+
+            async function selectDate(day) {
+                selectedDate = new Date(
+                    currentDate.getFullYear(),
+                    currentDate.getMonth(),
+                    day,
+                );
+                const dateKey = formatDate(selectedDate);
+
+                document.getElementById("modalTitle").textContent =
+                    selectedDate.toLocaleDateString("en-US", {
+                        weekday: "long",
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                    });
+
+                document.getElementById("adminControls").style.display = isAdmin
+                    ? "block"
+                    : "none";
+
+                const config = dateConfigs[dateKey] || {};
+                if (isAdmin) {
+                    document.getElementById("dayType").value =
+                        config.dayType || "";
+                    document.getElementById("accessDay").checked =
+                        config.isAccess || false;
+                }
+
+                await loadMaterials(dateKey);
+
+                loadEventsForDate(dateKey);
+                loadMaterialsForDate(dateKey);
+                hideAddForms();
+
+                document.getElementById("dateModal").style.display = "block";
+            }
+
+            function closeDateModal() {
+                document.getElementById("dateModal").style.display = "none";
+                hideAddForms();
+            }
+
+            async function toggleAdmin() {
+                if (!isAdmin) {
+                    const password = prompt("Enter admin password:");
+                    if (password === "Lions") {
+                        try {
+                            await apiCall("/api/admin/login", {
+                                method: "POST",
+                                body: JSON.stringify({ password }),
+                            });
+                            isAdmin = true;
+                            updateAdminUI();
+                        } catch (error) {
+                            alert("Login failed");
+                        }
+                    } else {
+                        alert("Incorrect password");
+                    }
+                } else {
+                    try {
+                        await apiCall("/api/admin/logout", { method: "POST" });
+                        isAdmin = false;
+                        updateAdminUI();
+                        hideStyleControls();
+                        hideLinkManager();
+                    } catch (error) {
+                        console.error("Logout failed:", error);
+                    }
+                }
+            }
+
+            async function changeView() {
+                currentView = document.getElementById("viewSelector").value;
+                document.getElementById("viewIndicator").textContent =
+                    currentView === "See All" ? "" : `Showing: ${currentView}`;
+                await loadEvents();
+                updateCalendar();
+            }
+
+            async function setDateColor(color) {
+                if (!isAdmin) return;
+                const dateKey = formatDate(selectedDate);
+
+                try {
+                    await apiCall("/api/date-configs", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            dateKey,
+                            config: { color },
+                        }),
+                    });
+
+                    if (!dateConfigs[dateKey]) dateConfigs[dateKey] = {};
+                    dateConfigs[dateKey].color = color;
+                    updateCalendar();
+                } catch (error) {
+                    alert("Failed to save date color");
+                }
+            }
+
+            async function setDayType() {
+                if (!isAdmin) return;
+                const dateKey = formatDate(selectedDate);
+                const dayType = document.getElementById("dayType").value;
+
+                try {
+                    await apiCall("/api/date-configs", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            dateKey,
+                            config: { dayType },
+                        }),
+                    });
+
+                    if (!dateConfigs[dateKey]) dateConfigs[dateKey] = {};
+                    dateConfigs[dateKey].dayType = dayType;
+                    updateCalendar();
+                } catch (error) {
+                    alert("Failed to save day type");
+                }
+            }
+
+            async function setAccessDay() {
+                if (!isAdmin) return;
+                const dateKey = formatDate(selectedDate);
+                const isAccess = document.getElementById("accessDay").checked;
+
+                try {
+                    await apiCall("/api/date-configs", {
+                        method: "POST",
+                        body: JSON.stringify({
+                            dateKey,
+                            config: { isAccess },
+                        }),
+                    });
+
+                    if (!dateConfigs[dateKey]) dateConfigs[dateKey] = {};
+                    dateConfigs[dateKey].isAccess = isAccess;
+                    updateCalendar();
+                } catch (error) {
+                    alert("Failed to save ACCESS day status");
+                }
+            }
+
+            function loadEventsForDate(dateKey) {
+                const dayEvents = events[dateKey] || [];
+                let html = "";
+                if (dayEvents.length === 0) {
+                    html =
+                        '<p style="color: #6b7280; font-style: italic;">No events scheduled</p>';
+                } else {
+                    dayEvents.forEach((event, index) => {
+                        const deptColor = getDepartmentColor(event.department);
+                        html += `<div class="event-item">
+                       <div class="event-details">
+                           <div>
+                               <strong>${event.title}</strong>
+                               <span class="event-time">${event.time}</span>
+                               <span class="event-dept" style="background-color: ${deptColor};">${event.department}</span>
+                           </div>
+                           ${event.description ? `<div style="font-size: 12px; color: #6b7280; margin-top: 4px;">${event.description}</div>` : ""}
+                       </div>
+                       ${
+                           isAdmin
+                               ? `
+                           <div style="display: flex; gap: 5px;">
+                               <button class="btn btn-small" onclick="editEvent('${dateKey}', ${event.id})" style="background: #6b7280;">Edit</button>
+                               <button class="btn btn-red btn-small" onclick="deleteEvent('${dateKey}', ${event.id})">Delete</button>
+                           </div>
+                       `
+                               : ""
+                       }
+                   </div>`;
+                    });
+                }
+                document.getElementById("eventsList").innerHTML = html;
+            }
+
+            function loadMaterialsForDate(dateKey) {
+                const dayMaterials = materials[dateKey] || {};
+                let html = "";
+                const grades = ["9th", "10th", "11th", "12th"];
+
+                grades.forEach((grade) => {
+                    html += `<h5 style="margin: 15px 0 8px 0; color: #374151;">${grade} Grade</h5>`;
+                    const gradeMaterials = dayMaterials[grade] || [];
+                    if (gradeMaterials.length === 0) {
+                        html +=
+                            '<p style="color: #6b7280; font-style: italic; margin-left: 20px; font-size: 14px;">No materials uploaded</p>';
+                    } else {
+                        gradeMaterials.forEach((material, index) => {
+                            html += `<div class="material-item">
+                           <div>
+                               <a href="${material.link}" target="_blank" style="color: #3b82f6; text-decoration: none; font-weight: 500;">${material.title}</a>
+                           </div>
+                           ${
+                               isAdmin
+                                   ? `
+                               <div style="display: flex; gap: 5px;">
+                                   <button class="btn btn-small" onclick="editMaterial('${dateKey}', '${grade}', ${material.id})" style="background: #6b7280;">Edit</button>
+                                   <button class="btn btn-red btn-small" onclick="deleteMaterial('${dateKey}', '${grade}', ${material.id})">Delete</button>
+                               </div>
+                           `
+                                   : ""
+                           }
+                       </div>`;
+                        });
+                    }
+                });
+                document.getElementById("materialsList").innerHTML = html;
+            }
+
+            function hideAddForms() {
+                document.getElementById("addEventForm").style.display = "none";
+                document.getElementById("showAddEventBtn").style.display =
+                    "block";
+                document.getElementById("addMaterialForm").style.display =
+                    "none";
+                document.getElementById("showAddMaterialBtn").style.display =
+                    "block";
+
+                editingEventId = null;
+                editingMaterialId = null;
+
+                document.getElementById("eventFormTitle").textContent =
+                    "Add New Event";
+                document.getElementById("saveEventBtn").textContent = "Add";
+                document.getElementById("materialFormTitle").textContent =
+                    "Add New Material";
+                document.getElementById("saveMaterialBtn").textContent = "Add";
+
+                clearEventForm();
+                clearMaterialForm();
+            }
+
+            function clearEventForm() {
+                document.getElementById("newEventTitle").value = "";
+                document.getElementById("newEventTime").value = "";
+                document.getElementById("newEventDepartment").value = "Life";
+                document.getElementById("newEventDescription").value = "";
+            }
+
+            function clearMaterialForm() {
+                document.getElementById("newMaterialGrade").value = "9th";
+                document.getElementById("newMaterialTitle").value = "";
+                document.getElementById("newMaterialLink").value = "";
+            }
+
+            // Event functions with editing support
+            function showAddEventForm() {
+                editingEventId = null;
+                clearEventForm();
+                document.getElementById("eventFormTitle").textContent =
+                    "Add New Event";
+                document.getElementById("saveEventBtn").textContent = "Add";
+                document.getElementById("addEventForm").style.display = "block";
+                document.getElementById("showAddEventBtn").style.display =
+                    "none";
+                document.getElementById("newEventTitle").focus();
+            }
+
+            function cancelAddEvent() {
+                hideAddForms();
+            }
+
+            async function saveEvent() {
+                if (!selectedDate) return;
+
+                const title = document
+                    .getElementById("newEventTitle")
+                    .value.trim();
+                const time = document.getElementById("newEventTime").value;
+                const department =
+                    document.getElementById("newEventDepartment").value;
+                const description = document
+                    .getElementById("newEventDescription")
+                    .value.trim();
+
+                if (!title) {
+                    alert("Please enter an event title");
+                    document.getElementById("newEventTitle").focus();
+                    return;
+                }
+
+                if (!time) {
+                    alert("Please select a time");
+                    document.getElementById("newEventTime").focus();
+                    return;
+                }
+
+                const dateKey = formatDate(selectedDate);
+
+                try {
+                    if (editingEventId) {
+                        await apiCall(`/api/events/${editingEventId}`, {
+                            method: "PUT",
+                            body: JSON.stringify({
+                                title,
+                                time,
+                                department,
+                                description,
+                            }),
+                        });
+
+                        const eventIndex = events[dateKey].findIndex(
+                            (e) => e.id === editingEventId,
+                        );
+                        if (eventIndex !== -1) {
+                            events[dateKey][eventIndex] = {
+                                ...events[dateKey][eventIndex],
+                                title,
+                                time,
+                                department,
+                                description,
+                            };
+                        }
+                    } else {
+                        const event = await apiCall("/api/events", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                dateKey,
+                                title,
+                                time,
+                                department,
+                                description,
+                            }),
+                        });
+
+                        if (!events[dateKey]) events[dateKey] = [];
+                        events[dateKey].push(event);
+                    }
+
+                    loadEventsForDate(dateKey);
+                    updateCalendar();
+                    hideAddForms();
+                } catch (error) {
+                    alert("Failed to save event");
+                }
+            }
+
+            async function editEvent(dateKey, eventId) {
+                const event = events[dateKey].find((e) => e.id === eventId);
+                if (!event) return;
+
+                editingEventId = eventId;
+
+                document.getElementById("newEventTitle").value = event.title;
+                document.getElementById("newEventTime").value = event.time;
+                document.getElementById("newEventDepartment").value =
+                    event.department;
+                document.getElementById("newEventDescription").value =
+                    event.description || "";
+
+                document.getElementById("eventFormTitle").textContent =
+                    "Edit Event";
+                document.getElementById("saveEventBtn").textContent = "Update";
+
+                document.getElementById("addEventForm").style.display = "block";
+                document.getElementById("showAddEventBtn").style.display =
+                    "none";
+                document.getElementById("newEventTitle").focus();
+            }
+
+            async function deleteEvent(dateKey, eventId) {
+                if (!isAdmin) return;
+                if (!confirm("Delete this event?")) return;
+
+                try {
+                    await apiCall(`/api/events/${eventId}`, {
+                        method: "DELETE",
+                    });
+
+                    events[dateKey] = events[dateKey].filter(
+                        (e) => e.id !== eventId,
+                    );
+
+                    loadEventsForDate(dateKey);
+                    updateCalendar();
+                } catch (error) {
+                    alert("Failed to delete event");
+                }
+            }
+
+            // Material functions with editing support
+            function showAddMaterialForm() {
+                if (!isAdmin) {
+                    alert("Admin mode required to add materials");
+                    return;
+                }
+                editingMaterialId = null;
+                clearMaterialForm();
+                document.getElementById("materialFormTitle").textContent =
+                    "Add New Material";
+                document.getElementById("saveMaterialBtn").textContent = "Add";
+                document.getElementById("addMaterialForm").style.display =
+                    "block";
+                document.getElementById("showAddMaterialBtn").style.display =
+                    "none";
+                document.getElementById("newMaterialTitle").focus();
+            }
+
+            function cancelAddMaterial() {
+                hideAddForms();
+            }
+
+            async function saveMaterial() {
+                if (!selectedDate || !isAdmin) return;
+
+                const grade = document.getElementById("newMaterialGrade").value;
+                const title = document
+                    .getElementById("newMaterialTitle")
+                    .value.trim();
+                const link = document
+                    .getElementById("newMaterialLink")
+                    .value.trim();
+
+                if (!title) {
+                    alert("Please enter a material title");
+                    document.getElementById("newMaterialTitle").focus();
+                    return;
+                }
+
+                if (!link) {
+                    alert("Please enter a material link");
+                    document.getElementById("newMaterialLink").focus();
+                    return;
+                }
+
+                const dateKey = formatDate(selectedDate);
+
+                try {
+                    if (editingMaterialId) {
+                        await apiCall(`/api/materials/${editingMaterialId}`, {
+                            method: "PUT",
+                            body: JSON.stringify({
+                                grade,
+                                title,
+                                link,
+                                type: "lesson",
+                            }),
+                        });
+
+                        if (materials[dateKey] && materials[dateKey][grade]) {
+                            const materialIndex = materials[dateKey][
+                                grade
+                            ].findIndex((m) => m.id === editingMaterialId);
+                            if (materialIndex !== -1) {
+                                materials[dateKey][grade][materialIndex] = {
+                                    ...materials[dateKey][grade][materialIndex],
+                                    title,
+                                    link,
+                                };
+                            }
+                        }
+                    } else {
+                        const material = await apiCall("/api/materials", {
+                            method: "POST",
+                            body: JSON.stringify({
+                                dateKey,
+                                grade,
+                                title,
+                                link,
+                                type: "lesson",
+                            }),
+                        });
+
+                        if (!materials[dateKey]) materials[dateKey] = {};
+                        if (!materials[dateKey][grade])
+                            materials[dateKey][grade] = [];
+                        materials[dateKey][grade].push(material);
+                    }
+
+                    loadMaterialsForDate(dateKey);
+                    hideAddForms();
+                } catch (error) {
+                    alert("Failed to save material");
+                }
+            }
+
+            async function editMaterial(dateKey, grade, materialId) {
+                const material = materials[dateKey][grade].find(
+                    (m) => m.id === materialId,
+                );
+                if (!material) return;
+
+                editingMaterialId = materialId;
+
+                document.getElementById("newMaterialGrade").value = grade;
+                document.getElementById("newMaterialTitle").value =
+                    material.title;
+                document.getElementById("newMaterialLink").value =
+                    material.link;
+
+                document.getElementById("materialFormTitle").textContent =
+                    "Edit Material";
+                document.getElementById("saveMaterialBtn").textContent =
+                    "Update";
+
+                document.getElementById("addMaterialForm").style.display =
+                    "block";
+                document.getElementById("showAddMaterialBtn").style.display =
+                    "none";
+                document.getElementById("newMaterialTitle").focus();
+            }
+
+            async function deleteMaterial(dateKey, grade, materialId) {
+                if (!isAdmin) return;
+                if (!confirm("Delete this material?")) return;
+
+                try {
+                    await apiCall(`/api/materials/${materialId}`, {
+                        method: "DELETE",
+                    });
+
+                    materials[dateKey][grade] = materials[dateKey][
+                        grade
+                    ].filter((m) => m.id !== materialId);
+
+                    loadMaterialsForDate(dateKey);
+                } catch (error) {
+                    alert("Failed to delete material");
+                }
+            }
+
+            // Initialize app
+            async function initializeApp() {
+                try {
+                    document.getElementById("dbStatus").textContent =
+                        "🔄 Loading...";
+
+                    await checkAdminStatus();
+                    await loadDateConfigs();
+                    await loadEvents();
+
+                    loadSavedStyles();
+                    loadQuickLinks();
+
+                    updateCalendar();
+
+                    document.getElementById("dbStatus").textContent =
+                        "🔗 Connected to Database";
+                    document.getElementById("dbConnection").textContent =
+                        "Connected (Neon PostgreSQL)";
+                    document.getElementById("dataPersistence").textContent =
+                        "Active";
+                    document.getElementById("customizationStatus").textContent =
+                        "Available";
+
+                    console.log(
+                        "✅ School Calendar System Loaded - With Sidebar",
+                    );
+                } catch (error) {
+                    console.error("Failed to initialize app:", error);
+                    document.getElementById("dbStatus").textContent =
+                        "❌ Connection Failed";
+                    document.getElementById("dbConnection").textContent =
+                        "Connection Error";
+                    document.getElementById("dataPersistence").textContent =
+                        "Unavailable";
+                    document.getElementById("customizationStatus").textContent =
+                        "Error";
+                }
+            }
+
+            initializeApp();
+        </script>
+    </body>
+</html>
+EOF
